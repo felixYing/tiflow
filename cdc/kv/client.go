@@ -1449,7 +1449,15 @@ func (s *eventFeedSession) logSlowRegions(ctx context.Context) error {
 	}
 }
 
-func assembleRowEvent(regionID uint64, entry *cdcpb.Event_Row) (model.RegionFeedEvent, error) {
+func assembleRowEvent(
+	ctx context.Context,
+	changefeed model.ChangeFeedID,
+	tableID model.TableID,
+	tableName string,
+	cfg *config.ServerConfig,
+	regionID uint64,
+	entry *cdcpb.Event_Row,
+) (model.RegionFeedEvent, error) {
 	var opType model.OpType
 	switch entry.GetOpType() {
 	case cdcpb.Event_Row_DELETE:
@@ -1473,7 +1481,46 @@ func assembleRowEvent(regionID uint64, entry *cdcpb.Event_Row) (model.RegionFeed
 		},
 	}
 
+	// Add trace logging for TiKV raft change log events
+	if cfg.Debug.Puller.EnableTraceEvents {
+		maxKeyLen := cfg.Debug.Puller.MaxKeyLengthForLog
+		if maxKeyLen <= 0 {
+			maxKeyLen = 128
+		}
+		maxValueLen := cfg.Debug.Puller.MaxValueLengthForLog
+		if maxValueLen <= 0 {
+			maxValueLen = 256
+		}
+		log.Debug("TiKV raw event assembled from raft change log",
+			zap.String("namespace", changefeed.Namespace),
+			zap.String("changefeed", changefeed.ID),
+			zap.Int64("tableID", tableID),
+			zap.String("tableName", tableName),
+			zap.Uint64("regionID", regionID),
+			zap.String("opType", opType.String()),
+			zap.String("key", truncateBytes(entry.Key, maxKeyLen)),
+			zap.Int("valueSize", len(entry.GetValue())),
+			zap.String("value", truncateBytes(entry.GetValue(), maxValueLen)),
+			zap.Int("oldValueSize", len(entry.GetOldValue())),
+			zap.String("oldValue", truncateBytes(entry.GetOldValue(), maxValueLen)),
+			zap.Uint64("startTs", entry.StartTs),
+			zap.Uint64("commitTs", entry.CommitTs))
+	}
+
 	return revent, nil
+}
+
+// truncateBytes returns a truncated byte slice string for logging purposes.
+// If the input is longer than maxLen, it returns the first maxLen bytes with a suffix.
+func truncateBytes(input []byte, maxLen int) string {
+	if len(input) <= maxLen {
+		return string(input)
+	}
+	if maxLen <= 0 {
+		return ""
+	}
+	// Display up to maxLen bytes as hex representation for binary data
+	return fmt.Sprintf("%x... (total %d bytes)", input[:maxLen], len(input))
 }
 
 // eventError wrap cdcpb.Event_Error to implements error interface.

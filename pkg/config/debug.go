@@ -54,4 +54,10 @@ type PullerConfig struct {
 	EnableResolvedTsStuckDetection bool `toml:"enable-resolved-ts-stuck-detection" json:"enable-resolved-ts-stuck-detection"`
 	// ResolvedTsStuckInterval is the interval of checking resolved ts stuck.
 	ResolvedTsStuckInterval TomlDuration `toml:"resolved-ts-stuck-interval" json:"resolved-ts-stuck-interval"`
+	// EnableTraceEvents enables tracing of TiKV change log events and raw data changes.
+	EnableTraceEvents bool `toml:"enable-trace-events" json:"enable-trace-events"`
+	// MaxKeyLengthForLog is the max length of key bytes to log (truncated if longer).
+	MaxKeyLengthForLog int `toml:"max-key-length-for-log" json:"max-key-length-for-log"`
+	// MaxValueLengthForLog is the max length of value bytes to log (truncated if longer).
+	MaxValueLengthForLog int `toml:"max-value-length-for-log" json:"max-value-length-for-log"`
 }

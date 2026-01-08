@@ -642,7 +642,18 @@ func (w *regionWorker) handleEventEntry(
 			return false
 		}
 	}
-	return handleEventEntry(x, w.session.startTs, state, w.metrics, emit, w.session.changefeed, w.session.tableID)
+	return handleEventEntry(
+		x,
+		w.session.startTs,
+		state,
+		w.metrics,
+		emit,
+		w.session.changefeed,
+		w.session.tableID,
+		w.session.tableName,
+		w.session.client.config,
+		ctx,
+	)
 }
 
 func handleEventEntry(
@@ -653,6 +664,9 @@ func handleEventEntry(
 	emit func(assembled model.RegionFeedEvent) bool,
 	changefeed model.ChangeFeedID,
 	tableID model.TableID,
+	tableName string,
+	cfg *config.ServerConfig,
+	ctx context.Context,
 ) error {
 	regionID, regionSpan, _ := state.getRegionMeta()
 	for _, entry := range x.Entries.GetEntries() {
@@ -677,7 +691,7 @@ func handleEventEntry(
 				zap.Stringer("span", &state.sri.span))
 
 			for _, cachedEvent := range state.matcher.matchCachedRow(true) {
-				revent, err := assembleRowEvent(regionID, cachedEvent)
+				revent, err := assembleRowEvent(ctx, changefeed, tableID, tableName, cfg, regionID, cachedEvent)
 				if err != nil {
 					return errors.Trace(err)
 				}
@@ -699,7 +713,7 @@ func handleEventEntry(
 			}
 
 			metrics.metricPullEventCommittedCounter.Inc()
-			revent, err := assembleRowEvent(regionID, entry)
+			revent, err := assembleRowEvent(ctx, changefeed, tableID, tableName, cfg, regionID, entry)
 			if err != nil {
 				return errors.Trace(err)
 			}
@@ -741,7 +755,7 @@ func handleEventEntry(
 				return errUnreachable
 			}
 
-			revent, err := assembleRowEvent(regionID, entry)
+			revent, err := assembleRowEvent(ctx, changefeed, tableID, tableName, cfg, regionID, entry)
 			if err != nil {
 				return errors.Trace(err)
 			}

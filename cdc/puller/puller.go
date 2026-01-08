@@ -15,6 +15,7 @@ package puller
 
 import (
 	"context"
+	"fmt"
 	"math"
 	"sync/atomic"
 	"time"
@@ -198,6 +199,30 @@ func (p *pullerImpl) Run(ctx context.Context) error {
 
 			if e.Val != nil {
 				metricPullerEventCounterKv.Inc()
+				// Add trace logging for raw KV events
+				if p.cfg.Debug.Puller.EnableTraceEvents {
+					maxKeyLen := p.cfg.Debug.Puller.MaxKeyLengthForLog
+					if maxKeyLen <= 0 {
+						maxKeyLen = 128
+					}
+					maxValueLen := p.cfg.Debug.Puller.MaxValueLengthForLog
+					if maxValueLen <= 0 {
+						maxValueLen = 256
+					}
+					log.Debug("puller received raw KV event",
+						zap.String("namespace", p.changefeed.Namespace),
+						zap.String("changefeed", p.changefeed.ID),
+						zap.Int64("tableID", p.tableID),
+						zap.String("tableName", p.tableName),
+						zap.String("opType", e.Val.OpType.String()),
+						zap.String("key", truncate(e.Val.Key, maxKeyLen)),
+						zap.Int("valueSize", len(e.Val.Value)),
+						zap.String("value", truncate(e.Val.Value, maxValueLen)),
+						zap.Int("oldValueSize", len(e.Val.OldValue)),
+						zap.Uint64("startTs", e.Val.StartTs),
+						zap.Uint64("commitTs", e.Val.CRTs),
+						zap.Uint64("regionID", e.Val.RegionID))
+				}
 				if err := output(e.Val); err != nil {
 					return errors.Trace(err)
 				}
@@ -321,4 +346,16 @@ func (p *pullerImpl) Stats() Stats {
 		ResolvedTsEgress:    atomic.LoadUint64(&p.resolvedTs),
 		CheckpointTsEgress:  atomic.LoadUint64(&p.checkpointTs),
 	}
+}
+
+// truncate returns a truncated byte slice for logging purposes.
+// If the input is longer than maxLen, it returns the first maxLen bytes.
+func truncate(input []byte, maxLen int) string {
+	if len(input) <= maxLen {
+		return string(input)
+	}
+	if maxLen <= 0 {
+		return ""
+	}
+	return string(input[:maxLen]) + fmt.Sprintf("... (total %d bytes)", len(input))
 }
