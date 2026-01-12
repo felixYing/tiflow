@@ -199,30 +199,13 @@ func (p *pullerImpl) Run(ctx context.Context) error {
 
 			if e.Val != nil {
 				metricPullerEventCounterKv.Inc()
-				// Add trace logging for raw KV events
-				if p.cfg.Debug.Puller.EnableTraceEvents {
-					maxKeyLen := p.cfg.Debug.Puller.MaxKeyLengthForLog
-					if maxKeyLen <= 0 {
-						maxKeyLen = 128
-					}
-					maxValueLen := p.cfg.Debug.Puller.MaxValueLengthForLog
-					if maxValueLen <= 0 {
-						maxValueLen = 256
-					}
-					log.Debug("puller received raw KV event",
-						zap.String("namespace", p.changefeed.Namespace),
-						zap.String("changefeed", p.changefeed.ID),
-						zap.Int64("tableID", p.tableID),
-						zap.String("tableName", p.tableName),
-						zap.String("opType", e.Val.OpType.String()),
-						zap.String("key", truncate(e.Val.Key, maxKeyLen)),
-						zap.Int("valueSize", len(e.Val.Value)),
-						zap.String("value", truncate(e.Val.Value, maxValueLen)),
-						zap.Int("oldValueSize", len(e.Val.OldValue)),
-						zap.Uint64("startTs", e.Val.StartTs),
-						zap.Uint64("commitTs", e.Val.CRTs),
-						zap.Uint64("regionID", e.Val.RegionID))
-				}
+				// Log raw KV event
+				const maxKeyLen, maxValueLen = 128, 256
+				log.Debug("puller received raw KV event",
+					zap.String("opType", e.Val.OpType.String()),
+					zap.String("key", truncate(e.Val.Key, maxKeyLen)),
+					zap.Uint64("startTs", e.Val.StartTs),
+					zap.Uint64("commitTs", e.Val.CRTs))
 				if err := output(e.Val); err != nil {
 					return errors.Trace(err)
 				}

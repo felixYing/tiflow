@@ -160,15 +160,7 @@ func TestAssembleRowEvent(t *testing.T) {
 	}}
 
 	for _, tc := range testCases {
-		event, err := assembleRowEvent(
-			context.Background(),
-			model.DefaultChangeFeedID(""),
-			0,
-			"",
-			config.GetDefaultServerConfig(),
-			tc.regionID,
-			tc.entry,
-		)
+		event, err := assembleRowEvent(tc.regionID, tc.entry)
 		require.Equal(t, tc.expected, event)
 		if err != nil {
 			require.Equal(t, tc.err, err.Error())

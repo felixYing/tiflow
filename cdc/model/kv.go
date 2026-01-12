@@ -33,6 +33,22 @@ const (
 	OpTypeResolved
 )
 
+// String implements fmt.Stringer interface.
+func (t OpType) String() string {
+	switch t {
+	case OpTypeUnknown:
+		return "Unknown"
+	case OpTypePut:
+		return "Put"
+	case OpTypeDelete:
+		return "Delete"
+	case OpTypeResolved:
+		return "Resolved"
+	default:
+		return "Unknown"
+	}
+}
+
 // RegionFeedEvent from the kv layer.
 // Only one of the event will be set.
 //
